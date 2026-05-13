@@ -1,0 +1,34 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres_db
+    restart: always
+    shm_size: 128mb
+    environment:
+      - POSTGRES_USER=${CARNATIC_DB_USER}
+      - POSTGRES_PASSWORD=${CARNATIC_DB_PASSWORD}
+      - POSTGRES_DB=${CARNATIC_DB_NAME}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${CARNATIC_DB_USER} -d ${CARNATIC_DB_NAME} || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  flyway:
+    image: flyway/flyway:latest
+    command: -connectRetries=60 migrate ${FLYWAY_DEBUG_FLAG}
+    environment:
+      FLYWAY_URL: jdbc:postgresql://postgres:5432/${CARNATIC_DB_NAME}
+      FLYWAY_USER: ${CARNATIC_DB_USER}
+      FLYWAY_PASSWORD: ${CARNATIC_DB_PASSWORD}
+    volumes:
+      - ./migrations:/flyway/sql
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
